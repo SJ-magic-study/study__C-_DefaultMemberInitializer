@@ -5,28 +5,22 @@
 		
 
 [注意]
-下記codeでは、
-	ITEM items[3] = {
-		ITEM(0),
-		ITEM(1),
-		ITEM(2),
-	};
+	下記codeは、
+		ITEM b = ITEM(0);
+		ITEM c[] = { ITEM(0), ITEM(1), };
+	いずれも、
+		compile時:
+			デフォルト コンストラクタ(引数付き)を使って、temporary変数を作成し、コピーコンストラクタで配列の要素を初期化
+		動作時:
+			デフォルト コンストラクタ(引数付き)のみがcallされる
 	
-	compile時:
-		コンストラクタを使って、temporary変数を作成し、コピーコンストラクタで配列の要素を初期化
-	動作時:
-		コピーコンストラクタを通らず、直接要素の初期化が行われている。
-		配列が定義された時に「引数なしコンストラクタ」が呼ばれることもない。
-		
-と動いている様子。
-例えばコピーコンストラクタをprivateにしてコピー禁止classにすると、compileが通らなかった。
-動作時は通らないのに、何故こうなるのかは不明のまま。
+	compileの最適化に寄る動作と思われる。
+	実動作時に通らないとは言え、copy constructorをprivateにすると、compileが通らないので注意。
 
-
-以前にも同じ内容を検討していた・・・
-	https://github.com/SJ-magic-study/study__init_Array_by_CopyConstructor
-		
-
+	
+	
+	以前にも同じ内容を検討していた・・・
+		https://github.com/SJ-magic-study/study__init_Array_by_CopyConstructor
 ************************************************************/
 #include <stdio.h>
 
@@ -46,10 +40,17 @@ private:
 	int a;
 	
 public:
+	ITEM()
+	: a(0)
+	{
+		printf("ITEM:default constructor:a=%d\n", a);
+		fflush(stdout);
+	}
+	
 	ITEM(int _a)
 	: a(_a)
 	{
-		printf("ITEM:constructor:a=%d\n", a);
+		printf("ITEM:Param constructor:a=%d\n", a);
 		fflush(stdout);
 	}
 	
@@ -79,12 +80,14 @@ public:
 
 class USER{
 private:
-	ITEM item = ITEM(99);
-	ITEM items[3] = {
-		ITEM(0),
-		ITEM(1),
-		ITEM(2),
-	};
+	ITEM item = ITEM(99);							// Param constructor
+													// Param constructorでtemporary変数を作成し、copy constructorで初期化 かと思ったが違った。
+													// compilerの最適化だろうか?
+													// 
+													// But : 動作時はcopy constructorを通ってないのに、これをprivateにすると、compile Error.
+
+	ITEM items[3] = { ITEM(0), ITEM(1), ITEM(2), };	// Param constructor
+													// こちらも、copy constructorをprivateにすると、compile Error.
 	
 public:
 	void print(){
@@ -103,13 +106,47 @@ public:
 
 int main()
 {
+	/********************
+	********************/
 	TEMP temp;
 	printf("%d, %d, %d, %d, %d, %d\n", temp.a, temp.b, temp.c, temp.d[0], temp.d[1], temp.d[2]); // 1, 2, 9 : constructor側の初期化が優先される.
 	
+	/********************
+	********************/
+	// ITEM a;			// default construcrot
+	
+	// ITEM b = a;	// copy constructor
+	
+	// ITEM b;	// default constructor
+	// b = a;	// operator =
+	// b.print();
+	
+	// ITEM b;	// default constructor
+	// b = ITEM(0);	// Param constructorでtemporary変数を作成し、operator=
+					// copy constructorがprivateでもok.
+	
+	// ITEM b(a);	// copy constructor
+	
+
+	/**********
+	!! 注意 !!
+	**********/
+	// ITEM b = ITEM(0);	// Param constructor
+						// Param constructorでtemporary変数を作成し、copy constructorでbを初期化 かと思ったが違った。
+						// compilerの最適化だろうか?
+						// 
+						// But : 動作時はcopy constructorを通ってないのに、これをprivateにすると、compile Error.
+	
+	// ITEM b(ITEM(1));	// Param constructor
+						// copy constructorをprivateにすると、compile Error
+						
+	// ITEM c[] = { ITEM(0), ITEM(1), };	// Param constructor.
+										// こちらも、copy constructorをprivateにすると、comipile Error
+	
+	/********************
+	********************/
 	USER user;
 	user.print();
-	
-	ITEM item(user.get_item(2));
 	
 	return 0;
 }
